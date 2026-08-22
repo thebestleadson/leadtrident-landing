@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Book a free roof inspection</title>
+<title>Free Roof Inspection + Hail Report</title>
 <meta name="robots" content="noindex">
 <!--
   Public booking page for the Marketing Area.
@@ -16,76 +16,97 @@
 
   It carries no secrets. The link token in ?t= is the only input; the API
   resolves the tenant and calendar from it server-side.
+
+  One submit button by design: the homeowner fills everything, and the single
+  final action runs the address lookup, the storm history and the booking in one
+  server call. Nothing they typed is ever cleared on a failure - if the slot is
+  taken while they were filling the form, the times refresh underneath and the
+  rest of their answers stay put.
 -->
 <style>
 :root{--brand:#1D4ED8;--bg:#F5F7FA;--surface:#fff;--border:#E8ECF0;--text:#111827;--muted:#6B7280}
 *{box-sizing:border-box}
 body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
 .wrap{max-width:560px;margin:0 auto;padding:28px 16px 64px}
-h1{font-size:25px;margin:0 0 6px;line-height:1.25}
+h1{font-size:26px;margin:0 0 8px;line-height:1.22}
 .tag{color:var(--muted);font-size:15px;line-height:1.55;margin:0 0 22px}
 .about{color:var(--muted);font-size:13px;line-height:1.6;margin:0}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px}
-.card h2{font-size:15px;margin:0 0 12px}
+.card h2{font-size:15px;margin:0 0 4px}
+.card .hint{font-size:12px;color:var(--muted);margin:0 0 8px}
 label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 5px}
 input,textarea{width:100%;padding:11px 12px;border-radius:9px;border:1px solid var(--border);background:#F9FAFB;font-size:16px;font-family:inherit;color:var(--text)}
 textarea{min-height:74px;resize:vertical}
 .row{display:flex;gap:10px}.row>*{flex:1}
-button{width:100%;padding:13px;border:0;border-radius:10px;background:var(--brand);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:14px}
+button{width:100%;padding:15px;border:0;border-radius:10px;background:var(--brand);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
 button:disabled{opacity:.5;cursor:default}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
-.result{margin-top:14px;font-size:14px;line-height:1.6}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-.chip{background:rgba(245,158,11,.12);color:#B45309;border-radius:999px;padding:5px 11px;font-size:13px;font-weight:700}
 .note{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.55;display:block}
 .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:7px;margin-top:10px}
 .slot{padding:10px 6px;border:1px solid var(--border);border-radius:8px;background:var(--surface);font-size:14px;cursor:pointer;text-align:center}
 .slot.sel{background:var(--brand);color:#fff;border-color:var(--brand);font-weight:700}
-.ok{text-align:center;padding:38px 14px}
-.tel{display:inline-block;margin-top:10px;color:var(--brand);font-weight:600;text-decoration:none}
+.consent{display:flex;gap:10px;align-items:flex-start;margin:4px 0 16px}
+.consent input{width:19px;height:19px;flex:0 0 19px;margin-top:2px;accent-color:var(--brand)}
+.consent label{font-size:12.5px;line-height:1.55;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400;margin:0}
 .err{color:#DC2626;font-size:13px;margin-top:10px}
 .gone{max-width:420px;margin:14vh auto;text-align:center;padding:0 20px}
+.report{margin-top:18px;text-align:left}
+.storm{display:flex;justify-content:space-between;align-items:center;padding:11px 13px;border:1px solid var(--border);border-radius:10px;margin-bottom:7px;background:#FFFBEB}
+.storm b{font-size:15px}
+.stars{color:#B45309;font-size:14px;letter-spacing:1px;white-space:nowrap}
+.ok h1{font-size:23px}
+.tel{display:inline-block;margin-top:12px;color:var(--brand);font-weight:600;text-decoration:none}
 </style>
 </head>
 <body>
 <div class="wrap" id="app" hidden>
-  <h1 id="biz">Free Roof Inspection</h1>
-  <p class="tag" id="tagline">Find out if a storm hit your address &mdash; then book a free inspection.</p>
+  <h1 id="biz">Free Roof Inspection + Hail Report</h1>
+  <p class="tag" id="tagline">Get a free hail report for your address along with a free roof inspection. See how many storms have hit your home and how severe they were.</p>
 
   <div class="card">
-    <h2>Was your area hit by a storm?</h2>
-    <label for="address">Street address</label>
-    <input id="address" autocomplete="street-address" placeholder="123 Main St">
-    <div class="row">
-      <div><label for="city">City</label><input id="city" autocomplete="address-level2"></div>
-      <div><label for="state">State</label><input id="state" autocomplete="address-level1" maxlength="2" placeholder="TX"></div>
-      <div><label for="zipcode">ZIP</label><input id="zipcode" autocomplete="postal-code" inputmode="numeric"></div>
-    </div>
-    <button id="checkBtn" type="button">Check my address</button>
-    <div class="result" id="stormResult"></div>
-  </div>
-
-  <div class="card">
-    <h2>Book a free inspection</h2>
-    <label for="date">Pick a day</label>
-    <input type="date" id="date">
-    <div class="slots" id="slots"></div>
+    <h2>Your details</h2>
     <div class="row">
       <div><label for="first_name">First name</label><input id="first_name" autocomplete="given-name"></div>
       <div><label for="last_name">Last name</label><input id="last_name" autocomplete="family-name"></div>
     </div>
     <div class="row">
       <div><label for="phone">Phone</label><input id="phone" type="tel" autocomplete="tel"></div>
-      <div><label for="email">Email (optional)</label><input id="email" type="email" autocomplete="email"></div>
+      <div><label for="email">Email</label><input id="email" type="email" autocomplete="email"></div>
     </div>
-    <label for="message">Anything we should know? (optional)</label>
-    <textarea id="message"></textarea>
-    <div class="hp" aria-hidden="true"><label for="company">Company</label><input id="company" tabindex="-1" autocomplete="off"></div>
-    <button id="bookBtn" type="button" disabled>Pick a day and time</button>
-    <div class="err" id="bookErr"></div>
   </div>
 
-  <div class="card" id="aboutCard" hidden><p class="about" id="about"></p><a class="tel" id="phoneLink" href="#"></a></div>
+  <div class="card">
+    <h2>Your address</h2>
+    <p class="hint">This is the address we check for storm history.</p>
+    <label for="address">Street address</label>
+    <input id="address" autocomplete="street-address" placeholder="123 Main St">
+    <div class="row">
+      <div><label for="city">City</label><input id="city" autocomplete="address-level2"></div>
+      <div><label for="state">State</label><input id="state" autocomplete="address-level1" maxlength="2"></div>
+      <div><label for="zipcode">ZIP</label><input id="zipcode" autocomplete="postal-code" inputmode="numeric"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Anything we should know?</h2>
+    <p class="hint">Optional &mdash; leaks, missing shingles, or anything you have already noticed.</p>
+    <textarea id="message"></textarea>
+    <div class="hp" aria-hidden="true"><label for="company">Company</label><input id="company" tabindex="-1" autocomplete="off"></div>
+  </div>
+
+  <div class="card">
+    <h2>Pick a day and time</h2>
+    <label for="date">Day</label>
+    <input type="date" id="date">
+    <div class="slots" id="slots"></div>
+  </div>
+
+  <div class="consent">
+    <input type="checkbox" id="consent">
+    <label for="consent" id="consentLabel"></label>
+  </div>
+  <button id="submitBtn" type="button">Book a Free Inspection</button>
+  <div class="err" id="err"></div>
 </div>
 
 <div class="gone" id="gone" hidden>
@@ -96,10 +117,20 @@ button:disabled{opacity:.5;cursor:default}
 <script>
 var API = 'https://hihnfoozljwgkhqzeujh.supabase.co/functions/v1/marketing-public';
 var TOKEN = new URLSearchParams(location.search).get('t') || '';
-var stormDates = [], picked = null, geo = { lon: null, lat: null }, site = {};
+var picked = null, site = {}, consentText = '';
 function $(id){ return document.getElementById(id); }
 function fmt(t){ var p=t.split(':'),h=+p[0],m=p[1],ap=h>=12?'PM':'AM',h12=h%12===0?12:h%12; return h12+':'+m+' '+ap; }
 function fmtDay(d){ var p=d.split('-'); return p[1]+'/'+p[2]+'/'+p[0]; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function stars(n){ if(typeof n!=='number'||!n) return ''; var s=''; for(var i=0;i<5;i++) s += i<n ? '★' : '☆'; return s; }
+
+/* Consent wording lives here so the exact sentence rendered is the exact
+   sentence stored on the lead. Covers ordinary manual follow-up; an autodialer,
+   prerecorded message or AI voice agent needs materially stronger language. */
+function buildConsent(businessName){
+  var who = businessName || 'this company';
+  return 'I agree that ' + who + ' may contact me about this request by phone, text message, or email using the details I provided, including to confirm my inspection and send my hail report. Message and data rates may apply, and I can ask to stop at any time.';
+}
 
 (function init(){
   if(!TOKEN){ $('gone').hidden=false; return; }
@@ -107,10 +138,10 @@ function fmtDay(d){ var p=d.split('-'); return p[1]+'/'+p[2]+'/'+p[0]; }
     .then(function(r){ if(!r.ok) throw 0; return r.json(); })
     .then(function(j){
       site = j;
-      if(j.business_name) $('biz').textContent = j.business_name;
-      if(j.tagline) $('tagline').textContent = j.tagline;
-      if(j.about){ $('about').textContent = j.about; $('aboutCard').hidden=false; }
-      if(j.phone){ var a=$('phoneLink'); a.textContent=j.phone; a.href='tel:'+j.phone; $('aboutCard').hidden=false; }
+      if(j.business_name){ $('biz').textContent = j.business_name + ' — Free Roof Inspection + Hail Report'; }
+      if(j.tagline){ $('tagline').textContent = j.tagline; }
+      consentText = buildConsent(j.business_name);
+      $('consentLabel').textContent = consentText;
       $('app').hidden = false;
       var d = new Date(); d.setDate(d.getDate()+1);
       $('date').value = d.toISOString().slice(0,10);
@@ -120,56 +151,59 @@ function fmtDay(d){ var p=d.split('-'); return p[1]+'/'+p[2]+'/'+p[0]; }
     .catch(function(){ $('gone').hidden=false; });
 })();
 
-$('checkBtn').onclick = function(){
-  var btn=$('checkBtn'), out=$('stormResult');
-  btn.disabled=true; btn.textContent='Checking…'; out.textContent='';
-  fetch(API+'/api/storm-check',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({token:TOKEN,address:$('address').value,city:$('city').value,state:$('state').value,zipcode:$('zipcode').value})})
-   .then(function(r){ return r.json().then(function(j){ return {s:r.status,j:j}; }); })
-   .then(function(res){
-     var j=res.j;
-     if(res.s===429){ out.innerHTML='<span class="note">Too many checks from this connection. Please try again in a little while.</span>'; }
-     else if(j.status==='ok' && j.dates && j.dates.length){
-       stormDates = j.dates.map(function(d){ return d.date; });
-       geo={lon:j.lon,lat:j.lat};
-       out.innerHTML='<strong>Yes &mdash; '+j.dates.length+' storm'+(j.dates.length>1?'s have':' has')+' hit your area.</strong>'+
-         '<div class="chips">'+j.dates.slice(0,8).map(function(d){ return '<span class="chip">'+fmtDay(d.date)+'</span>'; }).join('')+'</div>'+
-         '<span class="note">These are storm days recorded in your area (about a 7&nbsp;mile grid). An inspection is what confirms whether your roof itself was damaged.</span>';
-     }
-     else if(j.status==='ok'){
-       out.innerHTML='<strong>No storm days on record for your area.</strong><span class="note">Still worth an inspection if you are seeing granules in the gutters, ceiling stains, or missing shingles.</span>';
-     }
-     else if(j.status==='address_not_found'){
-       out.innerHTML='<span class="note">We could not find that address. Check the spelling, or just book below and we will sort it out.</span>';
-     }
-     else { out.innerHTML='<span class="note">Storm history is unavailable right now. You can still book below.</span>'; }
-   })
-   .catch(function(){ out.innerHTML='<span class="note">Something went wrong. You can still book below.</span>'; })
-   .then(function(){ btn.disabled=false; btn.textContent='Check my address'; });
-};
-
-function syncBook(){ var b=$('bookBtn'); b.disabled=!picked; b.textContent = picked ? 'Book '+fmt(picked) : 'Pick a day and time'; }
-
-function loadSlots(){
-  var box=$('slots'); box.innerHTML='<span class="note">Loading times…</span>'; picked=null; syncBook();
-  fetch(API+'/api/slots?token='+encodeURIComponent(TOKEN)+'&date='+encodeURIComponent($('date').value))
+function loadSlots(keepPick){
+  var box=$('slots'), want = keepPick ? picked : null;
+  box.innerHTML='<span class="note">Loading times…</span>';
+  picked=null;
+  return fetch(API+'/api/slots?token='+encodeURIComponent(TOKEN)+'&date='+encodeURIComponent($('date').value))
    .then(function(r){ return r.json(); })
    .then(function(j){
-     if(!j.slots || !j.slots.length){ box.innerHTML='<span class="note">No times left that day &mdash; try another.</span>'; return; }
+     if(!j.slots || !j.slots.length){ box.innerHTML='<span class="note">No times left that day — please try another.</span>'; return; }
      box.innerHTML='';
      j.slots.forEach(function(t){
        var b=document.createElement('div'); b.className='slot'; b.textContent=fmt(t);
-       b.onclick=function(){ picked=t; Array.prototype.forEach.call(box.children,function(c){c.classList.remove('sel');}); b.classList.add('sel'); syncBook(); };
+       b.onclick=function(){ picked=t; Array.prototype.forEach.call(box.children,function(c){c.classList.remove('sel');}); b.classList.add('sel'); };
        box.appendChild(b);
+       // Re-select what they had chosen if it survived the refresh.
+       if(want && t===want){ picked=t; b.classList.add('sel'); }
      });
    })
    .catch(function(){ box.innerHTML='<span class="note">Could not load times.</span>'; });
 }
-$('date').onchange = loadSlots;
+$('date').onchange = function(){ loadSlots(false); };
 
-$('bookBtn').onclick = function(){
-  var b=$('bookBtn'), err=$('bookErr'); err.textContent='';
+function showReport(when, at, report){
+  var body = '';
+  if(report && report.status==='ok' && report.dates && report.dates.length){
+    body = '<h2 style="font-size:15px;margin:0 0 4px">Your hail report</h2>'+
+      '<p class="hint">Storm days recorded for your area (about a 7 mile grid). Your inspection confirms what actually reached your roof.</p>'+
+      report.dates.map(function(d){
+        return '<div class="storm"><b>'+fmtDay(d.date)+'</b><span class="stars" title="Severity">'+stars(d.stars)+'</span></div>';
+      }).join('');
+  } else if(report && report.status==='ok'){
+    body = '<h2 style="font-size:15px;margin:0 0 4px">Your hail report</h2>'+
+      '<p class="hint">No storm days on record for your area. Your inspector will still check for wind, age and workmanship damage.</p>';
+  } else if(report && report.status==='address_not_found'){
+    body = '<p class="hint">We could not match that address to look up storm history — your inspector will confirm it when they arrive.</p>';
+  } else {
+    body = '<p class="hint">Your hail report is still being prepared and your inspector will bring it with them.</p>';
+  }
+  var tel = site.phone ? '<a class="tel" href="tel:'+esc(site.phone)+'">'+esc(site.phone)+'</a>' : '';
+  $('app').innerHTML =
+    '<div class="card ok"><h1>You are booked.</h1>'+
+    '<p class="tag">'+fmtDay(when)+' at '+fmt(at)+'</p>'+
+    '<div class="report">'+body+'</div>'+
+    '<p class="about" style="margin-top:16px">We will call to confirm. If you need to change the time, just give us a ring.</p>'+tel+'</div>';
+  window.scrollTo(0,0);
+}
+
+$('submitBtn').onclick = function(){
+  var b=$('submitBtn'), err=$('err'); err.textContent='';
   if(!$('first_name').value.trim() || !$('phone').value.trim()){ err.textContent='Please add your name and phone so we can confirm.'; return; }
+  if(!$('address').value.trim()){ err.textContent='Please add the address you would like inspected.'; return; }
+  if(!picked){ err.textContent='Please pick a day and a time.'; return; }
+  if(!$('consent').checked){ err.textContent='Please tick the box so we know we can contact you.'; return; }
+
   b.disabled=true; b.textContent='Booking…';
   var when = $('date').value, at = picked;
   fetch(API+'/api/book',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
@@ -178,24 +212,25 @@ $('bookBtn').onclick = function(){
     phone:$('phone').value, email:$('email').value,
     address:$('address').value, city:$('city').value, state:$('state').value, zipcode:$('zipcode').value,
     message:$('message').value, company:$('company').value,
-    storm_dates:stormDates, lon:geo.lon, lat:geo.lat })})
+    consent:true, consent_text:consentText })})
    .then(function(r){ return r.json(); })
    .then(function(j){
-     if(j.ok){
-       var tel = site.phone ? '<a class="tel" href="tel:'+site.phone+'">'+site.phone+'</a>' : '';
-       document.getElementById('app').innerHTML =
-         '<div class="card ok"><h1>You are booked.</h1>'+
-         '<p class="tag">'+fmtDay(when)+' at '+fmt(at)+'</p>'+
-         '<p class="about">We will call to confirm. If you need to change it, just give us a ring.</p>'+tel+'</div>';
-       window.scrollTo(0,0);
-       return;
+     if(j.ok){ showReport(when, at, j.report); return; }
+     // Never wipe what they typed. Only the times refresh.
+     if(j.error==='slot_taken'){
+       err.textContent='Someone just took that time. Your details are saved — please pick another time below.';
+       loadSlots(true).then(function(){ if(!picked) err.textContent='Someone just took that time. Your details are saved — please pick another time below.'; });
      }
-     if(j.error==='slot_taken'){ err.textContent='Someone just took that time. Please pick another.'; loadSlots(); }
      else if(j.error==='rate_limited'){ err.textContent='Too many attempts from this connection. Please try again later.'; }
+     else if(j.error==='missing_contact'){ err.textContent='Please add your name and phone so we can confirm.'; }
+     else if(j.error==='consent_required'){ err.textContent='Please tick the box so we know we can contact you.'; }
      else { err.textContent='We could not book that. Please try again.'; }
-     b.disabled=false; syncBook();
+     b.disabled=false; b.textContent='Book a Free Inspection';
    })
-   .catch(function(){ err.textContent='We could not book that. Please try again.'; b.disabled=false; syncBook(); });
+   .catch(function(){
+     err.textContent='We could not book that. Please try again.';
+     b.disabled=false; b.textContent='Book a Free Inspection';
+   });
 };
 </script>
 </body>
