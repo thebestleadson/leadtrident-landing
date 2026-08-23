@@ -61,7 +61,7 @@ button:disabled{opacity:.5;cursor:default}
 <body>
 <div class="wrap" id="app" hidden>
   <h1 id="biz">Free Roof Inspection + Hail Report</h1>
-  <p class="tag" id="tagline">Get a free hail report for your address along with a free roof inspection. See how many storms have hit your home and how severe they were.</p>
+  <p class="tag" id="tagline">Book your free roof inspection and we&rsquo;ll pull the storm history for your address before we arrive. After the inspection we&rsquo;ll send you the full hail report &mdash; every storm that hit your home, and the hail sizes measured near you.</p>
 
   <div class="card">
     <h2>Your details</h2>
@@ -122,7 +122,6 @@ function $(id){ return document.getElementById(id); }
 function fmt(t){ var p=t.split(':'),h=+p[0],m=p[1],ap=h>=12?'PM':'AM',h12=h%12===0?12:h%12; return h12+':'+m+' '+ap; }
 function fmtDay(d){ var p=d.split('-'); return p[1]+'/'+p[2]+'/'+p[0]; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
-function stars(n){ if(typeof n!=='number'||!n) return ''; var s=''; for(var i=0;i<5;i++) s += i<n ? '★' : '☆'; return s; }
 
 /* Consent wording lives here so the exact sentence rendered is the exact
    sentence stored on the lead. Covers ordinary manual follow-up; an autodialer,
@@ -172,28 +171,19 @@ function loadSlots(keepPick){
 }
 $('date').onchange = function(){ loadSlots(false); };
 
-function showReport(when, at, report){
-  var body = '';
-  if(report && report.status==='ok' && report.dates && report.dates.length){
-    body = '<h2 style="font-size:15px;margin:0 0 4px">Your hail report</h2>'+
-      '<p class="hint">Storm days recorded for your area (about a 7 mile grid). Your inspection confirms what actually reached your roof.</p>'+
-      report.dates.map(function(d){
-        return '<div class="storm"><b>'+fmtDay(d.date)+'</b><span class="stars" title="Severity">'+stars(d.stars)+'</span></div>';
-      }).join('');
-  } else if(report && report.status==='ok'){
-    body = '<h2 style="font-size:15px;margin:0 0 4px">Your hail report</h2>'+
-      '<p class="hint">No storm days on record for your area. Your inspector will still check for wind, age and workmanship damage.</p>';
-  } else if(report && report.status==='address_not_found'){
-    body = '<p class="hint">We could not match that address to look up storm history — your inspector will confirm it when they arrive.</p>';
-  } else {
-    body = '<p class="hint">Your hail report is still being prepared and your inspector will bring it with them.</p>';
-  }
+/* The hail report is deliberately NOT shown here. It is the reason to complete
+   the inspection, not a handout that makes the visit skippable — the company
+   sends it themselves once the inspector has been out. */
+function showBooked(when, at){
   var tel = site.phone ? '<a class="tel" href="tel:'+esc(site.phone)+'">'+esc(site.phone)+'</a>' : '';
   $('app').innerHTML =
     '<div class="card ok"><h1>You are booked.</h1>'+
     '<p class="tag">'+fmtDay(when)+' at '+fmt(at)+'</p>'+
-    '<div class="report">'+body+'</div>'+
-    '<p class="about" style="margin-top:16px">We will call to confirm. If you need to change the time, just give us a ring.</p>'+tel+'</div>';
+    '<div class="report"><h2 style="font-size:15px;margin:0 0 4px">What happens next</h2>'+
+    '<p class="hint">We will call to confirm your time. We are already pulling the storm history for your address, ' +
+    'and once the inspection is done we will send you the full hail report — every storm on record for your home ' +
+    'with the hail sizes measured nearby.</p></div>'+
+    '<p class="about" style="margin-top:16px">Need to change the time? Just give us a ring.</p>'+tel+'</div>';
   window.scrollTo(0,0);
 }
 
@@ -215,7 +205,7 @@ $('submitBtn').onclick = function(){
     consent:true, consent_text:consentText })})
    .then(function(r){ return r.json(); })
    .then(function(j){
-     if(j.ok){ showReport(when, at, j.report); return; }
+     if(j.ok){ showBooked(when, at); return; }
      // Never wipe what they typed. Only the times refresh.
      if(j.error==='slot_taken'){
        err.textContent='Someone just took that time. Your details are saved — please pick another time below.';
