@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Deliberately indexable (unlike book.html): Google for Jobs reads the
+     JobPosting JSON-LD this page injects after loading the tenant's open
+     positions. -->
+<title>Careers</title>
+<meta name="description" content="Open positions — apply online.">
+<style>
+  :root{--brand:#1D4ED8;--bg:#F5F7FA;--surface:#ffffff;--border:#E5E7EB;--text:#111827;--muted:#6B7280;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.5}
+  .wrap{max-width:640px;margin:0 auto;padding:28px 16px 60px}
+  header h1{font-size:24px;margin:0 0 4px}
+  .muted{color:var(--muted)}
+  .small{font-size:12.5px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-top:14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .card h2{font-size:17px;margin:0 0 2px}
+  .card h2 a{color:inherit;text-decoration:none}
+  .meta{font-size:12.5px;color:var(--muted);margin-bottom:8px}
+  .desc{font-size:13.5px;white-space:pre-line;margin-bottom:12px}
+  .btn{display:inline-block;background:var(--brand);color:#fff;border:none;border-radius:9px;padding:10px 18px;font-size:14px;font-weight:600;cursor:pointer}
+  .btn[disabled]{opacity:.6;cursor:default}
+  .btn.ghost{background:transparent;color:var(--brand);border:1px solid var(--brand)}
+  form{margin-top:12px;border-top:1px solid var(--border);padding-top:12px}
+  label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px}
+  input,textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:9px;font-size:16px;font-family:inherit;background:#fff;color:var(--text)}
+  textarea{resize:vertical}
+  .row{display:flex;gap:10px}
+  .row>div{flex:1}
+  .err{color:#B91C1C;font-size:13px;margin-top:10px}
+  .ok{background:rgba(5,150,105,.08);border:1px solid rgba(5,150,105,.4);color:#065F46;border-radius:10px;padding:12px 14px;font-size:14px;margin-top:12px}
+  .consent{font-size:12px;color:var(--muted);margin-top:10px}
+  .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+  #gone{text-align:center;padding-top:80px;color:var(--muted)}
+  footer{margin-top:26px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap" id="app" hidden>
+  <header>
+    <h1 id="org">Careers</h1>
+    <p class="muted" id="sub">Open positions</p>
+  </header>
+  <div id="list"></div>
+  <footer class="muted small" id="foot"></footer>
+</div>
+<div class="wrap" id="gone" hidden>
+  <h1>This page isn't available</h1>
+  <p class="muted">The link may have expired — please check with the company that shared it.</p>
+</div>
+<script>
+var API = 'https://hihnfoozljwgkhqzeujh.supabase.co/functions/v1/hiring-public';
+var params = new URLSearchParams(location.search);
+var TOKEN = params.get('t') || '';
+var PRESELECT = params.get('p') || '';
+var ORG_NAME = '';
+var CONSENT_LINE = '';
+
+function posUrl(id) {
+  return location.pathname + '?t=' + encodeURIComponent(TOKEN) + '&p=' + encodeURIComponent(id);
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function showGone() {
+  document.getElementById('gone').hidden = false;
+}
+
+function mapEmployment(t) {
+  t = (t || '').toLowerCase();
+  if (t.indexOf('full') > -1) return 'FULL_TIME';
+  if (t.indexOf('part') > -1) return 'PART_TIME';
+  if (t.indexOf('1099') > -1 || t.indexOf('contract') > -1) return 'CONTRACTOR';
+  if (t.indexOf('temp') > -1) return 'TEMPORARY';
+  if (t.indexOf('intern') > -1) return 'INTERN';
+  return null;
+}
+
+// Google for Jobs: JobPosting structured data, one entry per open position.
+// Google renders JS, so post-load injection is indexed.
+function injectJsonLd(org, positions) {
+  if (!positions.length) return;
+  var items = positions.map(function (p) {
+    var desc = p.description || ('Join ' + (org.business_name || 'our team') + ' as a ' + p.title + '.');
+    if (p.pay_range) desc += '\nPay: ' + p.pay_range;
+    if (p.location) desc += '\nLocation: ' + p.location;
+    var j = {
+      '@context': 'https://schema.org/',
+      '@type': 'JobPosting',
+      title: p.title,
+      datePosted: (p.created_at || '').slice(0, 10),
+      description: desc,
+      hiringOrganization: { '@type': 'Organization', name: org.business_name || 'Hiring Company' },
+      identifier: { '@type': 'PropertyValue', name: org.business_name || 'careers', value: p.id },
+      url: location.origin + posUrl(p.id),
+      directApply: true
+    };
+    var et = mapEmployment(p.employment_type);
+    if (et) j.employmentType = et;
+    if (p.location) {
+      j.jobLocation = { '@type': 'Place', address: { '@type': 'PostalAddress', addressLocality: p.location, addressCountry: 'US' } };
+    }
+    return j;
+  });
+  var s = document.createElement('script');
+  s.type = 'application/ld+json';
+  s.text = JSON.stringify(items);
+  document.head.appendChild(s);
+}
+
+function formHtml(id) {
+  return '' +
+    '<form data-pos="' + esc(id) + '" hidden>' +
+    '<div class="row"><div><label for="fn-' + esc(id) + '">First name *</label><input id="fn-' + esc(id) + '" name="first_name" autocomplete="given-name" maxlength="80"></div>' +
+    '<div><label for="ln-' + esc(id) + '">Last name</label><input id="ln-' + esc(id) + '" name="last_name" autocomplete="family-name" maxlength="80"></div></div>' +
+    '<div class="row"><div><label for="em-' + esc(id) + '">Email</label><input id="em-' + esc(id) + '" name="email" type="email" autocomplete="email" maxlength="120"></div>' +
+    '<div><label for="ph-' + esc(id) + '">Phone</label><input id="ph-' + esc(id) + '" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="40"></div></div>' +
+    '<label for="ru-' + esc(id) + '">Resume link (optional)</label><input id="ru-' + esc(id) + '" name="resume_url" maxlength="300" placeholder="Link to your resume — Google Drive, Dropbox, LinkedIn…">' +
+    '<label for="msg-' + esc(id) + '">Message (optional)</label><textarea id="msg-' + esc(id) + '" name="message" rows="3" maxlength="2000" placeholder="Tell us a little about yourself"></textarea>' +
+    '<div class="hp" aria-hidden="true"><label>Company</label><input name="company" tabindex="-1" autocomplete="off"></div>' +
+    '<div class="err" hidden></div>' +
+    '<div class="consent"></div>' +
+    '<div style="margin-top:12px"><button type="submit" class="btn">Submit Application</button></div>' +
+    '</form>';
+}
+
+function render(site, positions) {
+  ORG_NAME = site.business_name || '';
+  document.title = (ORG_NAME ? ORG_NAME + ' — ' : '') + 'Careers';
+  document.getElementById('org').textContent = ORG_NAME ? ORG_NAME + ' — Careers' : 'Careers';
+  if (site.phone) document.getElementById('foot').innerHTML = 'Questions? Call <a href="tel:' + esc(site.phone) + '">' + esc(site.phone) + '</a>';
+  var list = document.getElementById('list');
+  if (!positions.length) {
+    list.innerHTML = '<div class="card"><div class="muted">No open positions right now — check back soon.</div></div>';
+  } else {
+    list.innerHTML = positions.map(function (p) {
+      var meta = [p.employment_type, p.location, p.pay_range].filter(Boolean).map(esc).join(' · ');
+      return '<div class="card" id="pos-' + esc(p.id) + '">' +
+        '<h2><a href="' + esc(posUrl(p.id)) + '">' + esc(p.title) + '</a></h2>' +
+        (meta ? '<div class="meta">' + meta + '</div>' : '') +
+        (p.description ? '<div class="desc">' + esc(p.description) + '</div>' : '') +
+        '<button class="btn ghost" data-toggle="' + esc(p.id) + '">Apply for this position</button>' +
+        formHtml(p.id) +
+        '</div>';
+    }).join('');
+  }
+  document.getElementById('app').hidden = false;
+
+  // Google's guideline: JobPosting markup belongs on the job's own (leaf)
+  // page — only a ?p=<id> URL for a located position emits JSON-LD, and the
+  // bare list links every title to its leaf page so Google can crawl them.
+  var pre = null;
+  for (var i = 0; i < positions.length; i++) if (String(positions[i].id) === PRESELECT) pre = positions[i];
+  injectJsonLd(site, pre && pre.location ? [pre] : []);
+  if (pre) {
+    var canon = document.createElement('link');
+    canon.rel = 'canonical';
+    canon.href = location.origin + posUrl(pre.id);
+    document.head.appendChild(canon);
+  }
+
+  CONSENT_LINE = 'By applying you agree that ' + (ORG_NAME || 'this company') + ' may contact you about your application by phone, text message, or email.';
+  Array.prototype.forEach.call(document.querySelectorAll('form[data-pos]'), function (f) {
+    f.querySelector('.consent').textContent = CONSENT_LINE;
+    f.addEventListener('submit', function (e) { e.preventDefault(); submitApp(f); });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-toggle]'), function (b) {
+    b.addEventListener('click', function () {
+      var f = document.querySelector('form[data-pos="' + b.getAttribute('data-toggle') + '"]');
+      if (f) { f.hidden = !f.hidden; if (!f.hidden) b.textContent = 'Hide application form'; else b.textContent = 'Apply for this position'; }
+    });
+  });
+  if (PRESELECT) {
+    var card = document.getElementById('pos-' + PRESELECT);
+    if (card) {
+      var btn = card.querySelector('[data-toggle]');
+      if (btn) btn.click();
+      card.scrollIntoView();
+    }
+  }
+}
+
+var ERR_MAP = {
+  rate_limited: 'Too many applications from this connection — please try again in an hour.',
+  missing_name: 'Please add your name.',
+  missing_contact: 'Please add an email address or phone number so we can reach you.',
+  bad_email: 'That email address doesn\'t look right — please check it.',
+  bad_position: 'This position is no longer open — refresh the page to see current openings.',
+  consent_required: 'Please refresh this page and try again.'
+};
+
+function submitApp(f) {
+  var err = f.querySelector('.err');
+  err.hidden = true;
+  var get = function (n) { return (f.querySelector('[name="' + n + '"]').value || '').trim(); };
+  if (!get('first_name') && !get('last_name')) { err.textContent = ERR_MAP.missing_name; err.hidden = false; return; }
+  if (!get('email') && !get('phone')) { err.textContent = ERR_MAP.missing_contact; err.hidden = false; return; }
+  var resume = get('resume_url');
+  if (resume && !/^https?:\/\//i.test(resume)) resume = 'https://' + resume;
+  var btn = f.querySelector('button[type="submit"]');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  fetch(API + '/api/apply', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      token: TOKEN,
+      position_id: f.getAttribute('data-pos'),
+      first_name: get('first_name'),
+      last_name: get('last_name'),
+      email: get('email'),
+      phone: get('phone'),
+      resume_url: resume,
+      message: get('message'),
+      company: get('company'),
+      consent: true,
+      consent_text: CONSENT_LINE
+    })
+  }).then(function (r) { return r.json().then(function (j) { return { s: r.status, j: j }; }); })
+    .then(function (res) {
+      if (res.j && res.j.ok) {
+        var msg = res.j.already
+          ? 'You\'ve already applied for this position — your application is on file.'
+          : 'Application received — thank you! ' + (ORG_NAME || 'The team') + ' will be in touch.';
+        var card = f.parentNode;
+        var toggle = card.querySelector('[data-toggle]');
+        if (toggle) toggle.hidden = true;
+        f.outerHTML = '<div class="ok">' + esc(msg) + '</div>';
+        return;
+      }
+      var code = res.j && res.j.error;
+      err.textContent = ERR_MAP[code] || 'Something went wrong — please try again.';
+      err.hidden = false;
+      btn.disabled = false; btn.textContent = 'Submit Application';
+    })
+    .catch(function () {
+      err.textContent = 'Something went wrong — please check your connection and try again.';
+      err.hidden = false;
+      btn.disabled = false; btn.textContent = 'Submit Application';
+    });
+}
+
+if (!TOKEN) { showGone(); }
+else {
+  fetch(API + '/api/careers?token=' + encodeURIComponent(TOKEN))
+    .then(function (r) { if (!r.ok) throw new Error('nf'); return r.json(); })
+    .then(function (site) { render(site, site.positions || []); })
+    .catch(showGone);
+}
+</script>
+</body>
+</html>
