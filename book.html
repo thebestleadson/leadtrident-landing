@@ -31,6 +31,9 @@ body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;b
 h1{font-size:26px;margin:0 0 8px;line-height:1.22}
 .tag{color:var(--muted);font-size:15px;line-height:1.55;margin:0 0 22px}
 .about{color:var(--muted);font-size:13px;line-height:1.6;margin:0}
+.hero{display:block;width:100%;max-height:340px;object-fit:cover;border-radius:14px;border:1px solid var(--border);margin:0 0 16px}
+.gallery{display:flex;gap:8px;margin:-6px 0 18px}
+.gallery img{flex:1;min-width:0;height:88px;object-fit:cover;border-radius:10px;border:1px solid var(--border)}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:16px}
 .card h2{font-size:15px;margin:0 0 4px}
 .card .hint{font-size:12px;color:var(--muted);margin:0 0 8px}
@@ -61,6 +64,8 @@ button:disabled{opacity:.5;cursor:default}
 <body>
 <div class="wrap" id="app" hidden>
   <h1 id="biz">Free Roof Inspection + Hail Report</h1>
+  <img class="hero" id="hero" alt="" hidden>
+  <div class="gallery" id="gallery" hidden></div>
   <p class="tag" id="tagline">Book your free roof inspection and we&rsquo;ll pull the storm history for your address before we arrive. After the inspection we&rsquo;ll send you the full hail report &mdash; every storm that hit your home, and the hail sizes measured near you.</p>
 
   <div class="card">
@@ -139,6 +144,15 @@ function buildConsent(businessName){
       site = j;
       if(j.business_name){ $('biz').textContent = j.business_name + ' — Free Roof Inspection + Hail Report'; }
       if(j.tagline){ $('tagline').textContent = j.tagline; }
+      // Pictures the company attached to this link: first = hero, the rest a strip.
+      if(j.images && j.images.length){
+        $('hero').src = j.images[0]; $('hero').hidden = false;
+        if(j.images.length > 1){
+          var g = $('gallery'); g.innerHTML = '';
+          j.images.slice(1).forEach(function(u){ var im = document.createElement('img'); im.src = u; im.alt = ''; g.appendChild(im); });
+          g.hidden = false;
+        }
+      }
       consentText = buildConsent(j.business_name);
       $('consentLabel').textContent = consentText;
       $('app').hidden = false;
