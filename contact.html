@@ -96,13 +96,17 @@
             mask-composite: exclude;
     pointer-events: none;
   }
+  /* The Zoho form resizes itself (zf_rszfm=1 + the message listener below), so
+     the card fits the form exactly: no inner scrollbar, nothing cut off. */
+  .contact-form-wrap { overflow: hidden; }
   .contact-form-wrap iframe {
     width: 100%;
-    min-height: 720px;
+    height: 760px;
     border: none;
     border-radius: 10px;
     background: #fff;
     display: block;
+    transition: height .3s ease;
   }
   .contact-fallback {
     margin-top: 24px;
@@ -121,8 +125,8 @@
   footer a { color: var(--muted); margin: 0 12px; }
   footer a:hover { color: var(--cyan); text-decoration: none; }
   @media (max-width: 720px) {
-    .contact-form-wrap { padding: 18px; }
-    .contact-form-wrap iframe { min-height: 820px; }
+    .contact-form-wrap { padding: 12px; border-radius: 14px; }
+    .contact-form-wrap::before { border-radius: 14px; }
   }
 </style>
 </head>
@@ -147,8 +151,10 @@
 
     <div class="contact-form-wrap">
       <iframe
-        src="https://forms.zohopublic.com/supportleadt1/form/LeadTridentContact/formperma/hpRTurmZO6SbHymTYPuBACXjtvrmpI6KZFhYmUkeRT0"
+        id="lt-contact-form"
+        src="https://forms.zohopublic.com/supportleadt1/form/LeadTridentContact/formperma/hpRTurmZO6SbHymTYPuBACXjtvrmpI6KZFhYmUkeRT0?zf_rszfm=1"
         title="LeadTrident Contact Form"
+        scrolling="no"
         loading="lazy"
         referrerpolicy="no-referrer-when-downgrade">
       </iframe>
@@ -159,6 +165,26 @@
     </p>
   </div>
 </main>
+
+<script>
+  // Zoho posts "<formperma>|<height>" whenever the form's height changes; the
+  // frame follows it, so the card always fits the form.
+  (function () {
+    var perma = 'hpRTurmZO6SbHymTYPuBACXjtvrmpI6KZFhYmUkeRT0';
+    window.addEventListener('message', function (event) {
+      var data = event.data;
+      if (!data || typeof data !== 'string') return;
+      var parts = data.split('|');
+      if ((parts.length === 2 || parts.length === 3) && parts[0] === perma) {
+        var frame = document.getElementById('lt-contact-form');
+        if (!frame) return;
+        var h = (parseInt(parts[1], 10) + 16) + 'px';
+        if (parts.length === 3) { frame.scrollIntoView({ block: 'start' }); setTimeout(function () { frame.style.height = h; }, 400); }
+        else if (frame.style.height !== h) frame.style.height = h;
+      }
+    }, false);
+  })();
+</script>
 
 <footer>
   <div class="container">
